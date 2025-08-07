@@ -1,0 +1,37 @@
+[
+  {
+    "nom": "Marseille",
+    "code": "13055",
+    "codeDepartement": "13",
+    "codeRegion": "93",
+    "population": 870731
+  },
+  {
+    "nom": "Lyon",
+    "code": "69123",
+    "codeDepartement": "69",
+    "codeRegion": "84",
+    "population": 522969
+  },
+  {
+    "nom": "Toulouse",
+    "code": "31555",
+    "codeDepartement": "31",
+    "codeRegion": "76",
+    "population": 498003
+  },
+  {
+    "nom": "Nice",
+    "code": "06088",
+    "codeDepartement": "06",
+    "codeRegion": "93",
+    "population": 342522
+  },
+  {
+    "nom": "Nantes",
+    "code": "44109",
+    "codeDepartement": "44",
+    "codeRegion": "52",
+    "population": 323204
+  }
+] 
