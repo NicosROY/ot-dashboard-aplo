@@ -36,6 +36,7 @@ const CommuneSelectionStep: React.FC<CommuneSelectionStepProps> = ({
         .from('communes')
         .select('id, name, population')
         .not('population', 'is', null)
+        .gt('population', 0)
         .order('population', { ascending: false })
         .limit(20);
 
@@ -50,16 +51,22 @@ const CommuneSelectionStep: React.FC<CommuneSelectionStepProps> = ({
 
       if (allError) throw allError;
 
+      // Ajouter RaccoonCity manuellement pour les tests
+      const raccoonCity = { id: 99999, name: 'RaccoonCity', population: -1234 };
+      
       console.log('Top 20 communes chargées:', topCommunes);
 
       if (topCommunes && allCommunesData) {
+        // Ajouter RaccoonCity aux données complètes pour la recherche
+        const allCommunesWithTest = [raccoonCity, ...allCommunesData];
+        
         setCommunes(topCommunes);
-        setAllCommunes(allCommunesData);
+        setAllCommunes(allCommunesWithTest);
         setFilteredCommunes(topCommunes);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des communes:', error);
-      throw error; // Propager l'erreur au lieu d'utiliser des données factices
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -86,11 +93,13 @@ const CommuneSelectionStep: React.FC<CommuneSelectionStepProps> = ({
 
   const handleCommuneSelect = (commune: Commune) => {
     setSelectedCommune(commune);
+    // Sauvegarder immédiatement quand on sélectionne une commune
+    onUpdate(commune);
   };
 
   const handleContinue = () => {
     if (selectedCommune) {
-      onUpdate(selectedCommune);
+      // Les données sont déjà sauvegardées dans handleCommuneSelect
       onNext();
     }
   };
@@ -103,7 +112,10 @@ const CommuneSelectionStep: React.FC<CommuneSelectionStepProps> = ({
   };
 
   const getRecommendedPlan = (population: number): string => {
-    return population < 10000 ? 'Petite commune (79€ HT/mois)' : 'Grande commune (149€ HT/mois)';
+    if (population < 0) return 'Plan de test gratuit';
+    if (population < 10000) return 'Petite commune (99€ HT/mois)';
+    if (population < 100000) return 'Commune moyenne (199€ HT/mois)';
+    return 'Grande commune (299€ HT/mois)';
   };
 
   return (
@@ -129,57 +141,60 @@ const CommuneSelectionStep: React.FC<CommuneSelectionStepProps> = ({
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Nom de la commune..."
-          className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
 
+      {/* Message si aucune commune trouvée */}
+      {searchTerm && filteredCommunes.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          Aucune commune trouvée
+        </div>
+      )}
+
       {/* Liste des communes */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        {isLoading ? (
-          <div className="col-span-2 text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Chargement des communes...</p>
-          </div>
-        ) : filteredCommunes.length === 0 ? (
-          <div className="col-span-2 text-center py-8">
-            <p className="text-gray-600">Aucune commune trouvée</p>
-          </div>
-        ) : (
-          filteredCommunes.map((commune) => ( // Afficher toutes les communes filtrées
-            <div
-              key={commune.id}
-              onClick={() => handleCommuneSelect(commune)}
-              className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                selectedCommune?.id === commune.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-              }`}
-            >
+        {(isLoading ? Array(6).fill(null) : filteredCommunes).map((commune, index) => (
+          <div
+            key={isLoading ? index : commune.id}
+            onClick={() => !isLoading && handleCommuneSelect(commune)}
+            className={`
+              border rounded-md p-4 cursor-pointer transition-all duration-200
+              ${isLoading ? 'animate-pulse bg-gray-100' : ''}
+              ${selectedCommune?.id === commune?.id 
+                ? 'border-blue-500 bg-blue-50' 
+                : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+              }
+            `}
+          >
+            {isLoading ? (
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+              </div>
+            ) : (
               <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-semibold text-gray-900">{commune.name}</h3>
-                  <p className="text-xs text-gray-500">ID: {commune.id}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {commune.population ? commune.population.toLocaleString() : 'N/A'} hab.
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 mb-1">{commune.name}</h3>
+                  <p className="text-sm text-gray-600 mb-1">
+                    {commune.population ? commune.population.toLocaleString() : 'Population inconnue'} hab.
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-blue-600 font-medium">
                     {getPopulationCategory(commune.population || 0)}
                   </p>
                 </div>
+                {selectedCommune?.id === commune.id && (
+                  <div className="flex-shrink-0 ml-4">
+                    <svg className="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                )}
               </div>
-              
-              {selectedCommune?.id === commune.id && (
-                <div className="mt-3 p-3 bg-blue-100 rounded-md">
-                  <p className="text-sm text-blue-800">
-                    <strong>Plan recommandé :</strong> {getRecommendedPlan(commune.population || 0)}
-                  </p>
-                </div>
-              )}
-            </div>
-          ))
-        )}
+            )}
+          </div>
+        ))}
       </div>
 
       {/* Commune sélectionnée */}
@@ -200,7 +215,7 @@ const CommuneSelectionStep: React.FC<CommuneSelectionStepProps> = ({
               <p className="text-gray-900">{selectedCommune.population ? selectedCommune.population.toLocaleString() : 'N/A'} habitants</p>
             </div>
             <div>
-              <span className="font-medium text-gray-700">Plan recommandé :</span>
+              <span className="font-medium text-gray-700">Votre tarif :</span>
               <p className="text-gray-900">{getRecommendedPlan(selectedCommune.population || 0)}</p>
             </div>
           </div>
@@ -221,9 +236,9 @@ const CommuneSelectionStep: React.FC<CommuneSelectionStepProps> = ({
             </h3>
             <div className="mt-2 text-sm text-blue-700">
               <ul className="list-disc list-inside space-y-1">
-                <li><strong>Moins de 10 000 habitants :</strong> 79€ HT/mois</li>
-                <li><strong>Plus de 10 000 habitants :</strong> 149€ HT/mois</li>
-                <li>Période d'essai gratuite de 7 jours</li>
+                <li><strong>Moins de 10 000 habitants :</strong> 99€ HT/mois</li>
+                <li><strong>De 10 000 à 100 000 habitants :</strong> 199€ HT/mois</li>
+                <li><strong>Plus de 100 000 habitants :</strong> 299€ HT/mois</li>
                 <li>Résiliable à tout moment avec un préavis d'un mois</li>
               </ul>
             </div>
@@ -240,13 +255,17 @@ const CommuneSelectionStep: React.FC<CommuneSelectionStepProps> = ({
           Retour
         </button>
         
-                  <button
-            onClick={handleContinue}
-            disabled={!selectedCommune}
-            className="btn btn-primary w-full"
-          >
-            Continuer
-          </button>
+        <button
+          onClick={handleContinue}
+          disabled={!selectedCommune}
+          className={`px-6 py-3 rounded-md font-medium transition-all duration-200 ${
+            !selectedCommune
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-white text-aplo-purple border border-aplo-purple hover:bg-aplo-purple hover:text-white focus:outline-none focus:ring-2 focus:ring-aplo-purple focus:ring-offset-2'
+          }`}
+        >
+          Continuer
+        </button>
       </div>
     </div>
   );

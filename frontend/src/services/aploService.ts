@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Configuration Supabase APLO
-const APLO_SUPABASE_URL = 'https://olzfglymtpcazrptazov.supabase.co';
-const APLO_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9semZnbHltdHBjYXpycHRhem92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyOTEwOTEsImV4cCI6MjA2MTg2NzA5MX0.FWYWuAdPBQOs5UHrC7FHc5fGNbb_AI1HIA02ou8O230';
-const APLO_SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9semZnbHltdHBjYXpycHRhem92Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjI5MTA5MSwiZXhwIjoyMDYxODY3MDkxfQ.ESU3czLRtn2sqQsLugwFRcC-7t4oDwp1teqFpmer-gc';
+const APLO_SUPABASE_URL = process.env.REACT_APP_APLO_SUPABASE_URL || '';
+const APLO_SUPABASE_ANON_KEY = process.env.REACT_APP_APLO_SUPABASE_ANON_KEY || '';
+const APLO_SUPABASE_SERVICE_KEY = process.env.REACT_APP_APLO_SUPABASE_SERVICE_KEY || '';
 
 // Client Supabase pour APLO (avec service_role pour bypass RLS)
 const aploSupabase = createClient(APLO_SUPABASE_URL, APLO_SUPABASE_SERVICE_KEY);

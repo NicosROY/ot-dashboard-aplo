@@ -179,25 +179,9 @@ const KYCStep: React.FC<KYCStepProps> = ({
         throw uploadError;
       }
 
-      // Enregistrer dans la base de données
-      const { data: dbData, error: dbError } = await supabaseService.getClient()
-        .from('kyc_documents')
-        .insert({
-          user_id: user.id,
-          commune_id: communeData.id,
-          file_name: file.name,
-          file_path: filePath,
-          file_size: file.size,
-          file_type: file.type
-        })
-        .select()
-        .single();
-
-      if (dbError) {
-        throw dbError;
-      }
-
-      console.log('Document uploadé avec succès:', dbData);
+      // Pas d'insertion dans kyc_documents pendant l'onboarding
+      // Le document sera enregistré à la fin de l'onboarding
+      console.log('Document uploadé vers le bucket avec succès:', filePath);
 
       setDocumentStatus('uploaded');
       setUploadedFile({
@@ -210,7 +194,9 @@ const KYCStep: React.FC<KYCStepProps> = ({
         ...kycData, 
         documentUploaded: true, 
         method: 'document' as const,
-        documentId: dbData.id,
+        documentPath: filePath, // Sauvegarder le chemin du fichier
+        fileName: file.name, // Sauvegarder le nom du fichier
+        fileSize: file.size, // Sauvegarder la taille du fichier
         validated: false // Pas encore validé par l'admin
       };
       setKycData(newKycData);
@@ -330,25 +316,7 @@ const KYCStep: React.FC<KYCStepProps> = ({
         </p>
       </div>
 
-      {/* Informations de la commune */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Office de Tourisme de {communeData.name}
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="font-medium text-gray-700">Administrateur :</span>
-            <p className="text-gray-900">{adminData.firstName} {adminData.lastName}</p>
-            <p className="text-gray-600">{adminData.email}</p>
-          </div>
-          <div>
-            <span className="font-medium text-gray-700">Fonction :</span>
-            <p className="text-gray-900">{adminData.function}</p>
-            <span className="font-medium text-gray-700">Téléphone :</span>
-            <p className="text-gray-900">{adminData.phone}</p>
-          </div>
-        </div>
-      </div>
+
 
       {/* Upload de document */}
       <div className="border border-gray-200 rounded-lg p-6 mb-8">

@@ -7,7 +7,7 @@ import uploadService from '../services/uploadService';
 import PDFViewerModal from '../components/PDFViewerModal';
 import { aploService } from '../services/aploService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import communesData from '../../public/communes.json';
+
 
 interface AdminStats {
   totalCommunes: number;
@@ -112,7 +112,7 @@ const AdminPage: React.FC = () => {
   const [communes, setCommunes] = useState<Commune[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [pushedEvents, setPushedEvents] = useState<Event[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'kyc' | 'communes-without-payment' | 'communes' | 'events' | 'pushed-events' | 'kyc-rejected'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'kyc' | 'communes-without-payment' | 'communes' | 'events' | 'pushed-events'>('overview');
   const [loading, setLoading] = useState(true);
   const [showEventForm, setShowEventForm] = useState(false);
   const [newEvent, setNewEvent] = useState({
@@ -199,7 +199,7 @@ const AdminPage: React.FC = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const tabParam = urlParams.get('tab');
-    if (tabParam && ['overview', 'kyc', 'communes-without-payment', 'communes', 'events', 'pushed-events', 'kyc-rejected'].includes(tabParam)) {
+    if (tabParam && ['overview', 'kyc', 'communes-without-payment', 'communes', 'events', 'pushed-events'].includes(tabParam)) {
       setActiveTab(tabParam as any);
     }
   }, [location.search]);
@@ -398,8 +398,8 @@ const AdminPage: React.FC = () => {
         .from('events')
         .select(`
           *,
-          user_profiles!inner(first_name, last_name),
-          communes!inner(name)
+          user_profiles(first_name, last_name),
+          communes(name)
         `)
         .order('created_at', { ascending: false });
 
@@ -554,47 +554,119 @@ const AdminPage: React.FC = () => {
     onboardingCompletedAt: string;
   }>> => {
     try {
-      // Récupérer les communes qui ont des profils admin mais pas d'abonnement
-      const { data, error } = await supabaseService.getClient()
-        .from('user_profiles')
-        .select(`
-          commune_id,
-          email,
-          first_name,
-          last_name,
-          communes!user_profiles_commune_id_fkey(
-            id,
-            name,
-            population
-          )
-        `)
-        .eq('role', 'admin')
-        .not('commune_id', 'is', null);
-
-      if (error) throw error;
-
-      // Récupérer les communes qui ont des abonnements
-      const { data: subscriptionsData } = await supabaseService.getClient()
+      console.log('[COMMUNES EN RETARD] Début du chargement...');
+      
+      // Récupérer les abonnements actifs
+      const { data: subscriptions, error: subscriptionsError } = await supabaseService.getClient()
         .from('subscriptions')
-        .select('commune_id');
+        .select(`
+          id,
+          commune_id,
+          status,
+          current_period_end,
+          created_at
+        `)
+        .eq('status', 'active');
 
-      const communesWithSubscription = new Set(
-        subscriptionsData?.map((sub: any) => sub.commune_id) || []
-      );
+      if (subscriptionsError) {
+        console.error('[COMMUNES EN RETARD] Erreur abonnements:', subscriptionsError);
+        throw subscriptionsError;
+      }
 
-      // Filtrer pour ne garder que les communes sans abonnement
-      return (data || [])
-        .filter((profile: any) => !communesWithSubscription.has(profile.commune_id))
-        .map((profile: any) => ({
-          id: profile.commune_id,
-          name: profile.communes?.name || 'Commune inconnue',
-          adminEmail: profile.email,
-          adminName: `${profile.first_name} ${profile.last_name}`,
-          population: profile.communes?.population || 0,
-          onboardingCompletedAt: new Date().toISOString() // À récupérer depuis onboarding_progress
-        }));
+      console.log('[COMMUNES EN RETARD] Abonnements actifs:', subscriptions);
+
+      const today = new Date();
+      const communesEnRetard: any[] = [];
+
+      // Vérifier chaque abonnement
+      for (const subscription of subscriptions || []) {
+        const periodEnd = new Date(subscription.current_period_end);
+        const deadline = new Date(periodEnd);
+        deadline.setDate(deadline.getDate() + 1); // +1 jour de tolérance
+
+        console.log(`[COMMUNES EN RETARD] Vérification abonnement ${subscription.id}:`, {
+          commune_id: subscription.commune_id,
+          period_end: subscription.current_period_end,
+          deadline: deadline.toISOString(),
+          today: today.toISOString(),
+          en_retard: today > deadline
+        });
+
+        // Si la date limite est dépassée
+        if (today > deadline) {
+          // Vérifier s'il y a un paiement après la date de fin de période
+          const { data: payments, error: paymentsError } = await supabaseService.getClient()
+            .from('payments')
+            .select('created_at')
+            .eq('subscription_id', subscription.id)
+            .gte('created_at', subscription.current_period_end)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (paymentsError) {
+            console.error('[COMMUNES EN RETARD] Erreur paiements:', paymentsError);
+            continue;
+          }
+
+          console.log(`[COMMUNES EN RETARD] Paiements trouvés pour ${subscription.id}:`, payments);
+
+          // Si pas de paiement après la date de fin de période
+          if (!payments || payments.length === 0) {
+            communesEnRetard.push(subscription);
+          }
+        }
+      }
+
+      console.log('[COMMUNES EN RETARD] Communes en retard trouvées:', communesEnRetard);
+
+      // Récupérer les détails des communes en retard
+      const communeIds = communesEnRetard.map(s => s.commune_id);
+      let communesData: any[] = [];
+      
+      if (communeIds.length > 0) {
+        const { data: communes, error: communesError } = await supabaseService.getClient()
+          .from('communes')
+          .select('id, name, population')
+          .in('id', communeIds);
+
+        if (communesError) {
+          console.error('[COMMUNES EN RETARD] Erreur communes:', communesError);
+        } else {
+          communesData = communes || [];
+        }
+      }
+
+      // Récupérer les profils admin pour ces communes
+      const { data: profiles, error: profilesError } = await supabaseService.getClient()
+        .from('user_profiles')
+        .select('commune_id, email, first_name, last_name')
+        .in('commune_id', communeIds)
+        .eq('role', 'admin');
+
+      if (profilesError) {
+        console.error('[COMMUNES EN RETARD] Erreur profils:', profilesError);
+      }
+
+      // Mapper les données
+      const result = communesEnRetard.map((subscription) => {
+        const commune = communesData.find(c => c.id === subscription.commune_id);
+        const profile = profiles?.find(p => p.commune_id === subscription.commune_id);
+        
+        return {
+          id: subscription.commune_id,
+          name: commune?.name || `Commune ID ${subscription.commune_id}`,
+          adminEmail: profile?.email || '',
+          adminName: profile ? `${profile.first_name} ${profile.last_name}` : '',
+          population: commune?.population || 0,
+          onboardingCompletedAt: subscription.created_at
+        };
+      });
+
+      console.log('[COMMUNES EN RETARD] Résultat final:', result);
+      return result;
+
     } catch (error) {
-      console.error('Erreur lors du chargement des communes sans paiement:', error);
+      console.error('Erreur lors du chargement des communes en retard:', error);
       return [];
     }
   };
@@ -1082,8 +1154,8 @@ const AdminPage: React.FC = () => {
         // Calcul du prochain paiement
         let prochainPaiement = '-';
         if (sub) {
-          if (sub.next_payment_date) {
-            prochainPaiement = new Date(sub.next_payment_date).toLocaleDateString('fr-FR');
+          if (sub.current_period_end) {
+            prochainPaiement = new Date(sub.current_period_end).toLocaleDateString('fr-FR');
           } else if (sub.created_at) {
             const created = new Date(sub.created_at);
             const next = new Date(created.setMonth(created.getMonth() + 1));
@@ -1157,8 +1229,7 @@ const AdminPage: React.FC = () => {
               { id: 'communes-without-payment', name: 'Sans paiement', icon: '💰' },
               { id: 'communes', name: 'Communes', icon: '🏘️' },
               { id: 'events', name: 'Événements', icon: '📅' },
-              { id: 'pushed-events', name: 'Événements poussés', icon: '🚀' },
-              { id: 'kyc-rejected', name: 'KYC rejetés', icon: '❌' }
+              { id: 'pushed-events', name: 'Événements poussés', icon: '🚀' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1368,34 +1439,7 @@ const AdminPage: React.FC = () => {
                 </table>
               </div>
             </div>
-            {/* Liste des communes avec KYC rejeté (aucun accepté) */}
-            <div className="bg-white rounded-lg shadow p-6 mt-8">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Communes avec KYC rejeté (aucun accepté)</h3>
-              {communesWithOnlyRejectedKYC.length === 0 ? (
-                <div className="text-gray-500">Aucune commune à relancer.</div>
-              ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commune</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documents rejetés</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {communesWithOnlyRejectedKYC.map((commune) => (
-                      <tr key={commune.communeName}>
-                        <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{commune.communeName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {commune.documents.filter(doc => doc.status === 'rejected').map((doc, idx) => (
-                            <span key={idx} className="inline-block bg-red-100 text-red-700 rounded px-2 py-1 text-xs mr-1 mb-1">{doc.name}</span>
-                          ))}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+
           </>
         )}
 
@@ -1645,16 +1689,16 @@ const AdminPage: React.FC = () => {
             <div className="bg-white rounded-lg shadow">
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="text-lg font-medium text-gray-900">Événements validés</h3>
-                <div className="flex space-x-2">
+                <div className="flex space-x-3">
                   <button
                     onClick={() => handlePushAllEvents()}
-                    className="btn btn-primary"
+                    className="px-4 py-2 text-aplo-purple bg-white border border-aplo-purple rounded-md hover:bg-aplo-purple hover:text-white transition-all duration-200 font-medium"
                   >
                     Push All
                   </button>
                   <button
                     onClick={() => setShowEventForm(true)}
-                    className="btn btn-secondary"
+                    className="px-4 py-2 text-aplo-purple bg-white border border-aplo-purple rounded-md hover:bg-aplo-purple hover:text-white transition-all duration-200 font-medium"
                   >
                     + Ajouter un événement
                   </button>
@@ -1755,7 +1799,7 @@ const AdminPage: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
                             onClick={() => handleEventAction(event.id, 'push')}
-                            className="text-green-600 hover:text-green-900 mr-3 px-3 py-1 border border-green-600 rounded hover:bg-green-50"
+                            className="px-3 py-1 text-aplo-purple bg-white border border-aplo-purple rounded-md hover:bg-aplo-purple hover:text-white transition-all duration-200 font-medium mr-3"
                           >
                             Push
                           </button>
@@ -1908,7 +1952,7 @@ const AdminPage: React.FC = () => {
         {/* Modal pour créer un événement */}
         {showEventForm && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-10 mx-auto p-8 border w-full max-w-4xl shadow-2xl rounded-2xl bg-white">
+            <div className="relative top-10 mx-auto p-8 border w-full max-w-4xl shadow-sm rounded-md bg-white">
               <div className="mb-6">
                 <div className="flex justify-between items-center">
                   <h3 className="text-2xl font-bold text-gray-900">Créer un nouvel événement</h3>
@@ -1927,7 +1971,7 @@ const AdminPage: React.FC = () => {
               
               <form onSubmit={handleCreateEvent} className="space-y-8 max-h-[80vh] overflow-y-auto">
                 {/* Sélection de la commune */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-md border border-blue-100">
                   <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -1984,7 +2028,7 @@ const AdminPage: React.FC = () => {
                 </div>
 
                 {/* Titre et description */}
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-xl border border-blue-100">
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-md border border-blue-100">
                   <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -2023,7 +2067,7 @@ const AdminPage: React.FC = () => {
                 </div>
 
                 {/* Dates */}
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-100">
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-md border border-green-100">
                   <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -2061,7 +2105,7 @@ const AdminPage: React.FC = () => {
                 </div>
 
                 {/* Nom du lieu et adresse */}
-                <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-xl border border-orange-100">
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-md border border-orange-100">
                   <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -2128,7 +2172,7 @@ const AdminPage: React.FC = () => {
                 </div>
 
                 {/* Catégorie */}
-                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-xl border border-purple-100">
+                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-md border border-purple-100">
                   <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
@@ -2157,7 +2201,7 @@ const AdminPage: React.FC = () => {
                 </div>
 
                 {/* Gratuit/Payant */}
-                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 rounded-xl border border-emerald-100">
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 rounded-md border border-emerald-100">
                   <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
@@ -2223,7 +2267,7 @@ const AdminPage: React.FC = () => {
                 </div>
 
                 {/* Upload d'image */}
-                <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-6 rounded-xl border border-pink-100">
+                <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-6 rounded-md border border-pink-100">
                   <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -2300,7 +2344,7 @@ const AdminPage: React.FC = () => {
                 </div>
 
                 {/* Contact */}
-                <div className="bg-gradient-to-r from-cyan-50 to-blue-50 p-6 rounded-xl border border-cyan-100">
+                <div className="bg-gradient-to-r from-cyan-50 to-blue-50 p-6 rounded-md border border-cyan-100">
                   <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

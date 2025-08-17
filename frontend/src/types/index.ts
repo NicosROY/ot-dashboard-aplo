@@ -21,7 +21,7 @@ export interface User {
 export interface AuthResponse {
   success: boolean;
   token: string;
-  user: User;
+  user?: User; // Optionnel car AuthContext gère le statut
   expiresIn: string;
 }
 
@@ -178,6 +178,7 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   onboardingStatus: 'checking' | 'complete' | 'incomplete';
   isOnboardingComplete: boolean;
+  onboardingStep: number; // Étape actuelle de l'onboarding sauvegardée
   refreshOnboardingStatus: () => Promise<void>;
 }
 

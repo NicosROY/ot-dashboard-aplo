@@ -97,7 +97,7 @@ const OnboardingSuccessPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-aplo-cream flex items-center justify-center">
       <div className="max-w-md mx-auto text-center">
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="bg-white rounded-md shadow-sm p-8">
           <div className="text-green-600 mb-4">
             <CheckCircleIcon className="h-16 w-16 mx-auto" />
           </div>

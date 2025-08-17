@@ -497,12 +497,12 @@ const EventFormPage: React.FC = () => {
 
       {/* Form */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20">
+        <div className="bg-white/70 backdrop-blur-sm rounded-md shadow-sm border border-white/20">
           <div className="p-8">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
               {/* Titre et description */}
               <div className="space-y-6">
-                <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-xl border border-blue-100">
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-md border border-blue-100">
                   <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -563,7 +563,7 @@ const EventFormPage: React.FC = () => {
               </div>
 
               {/* Dates */}
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-100">
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-md border border-green-100">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -621,7 +621,7 @@ const EventFormPage: React.FC = () => {
               </div>
 
               {/* Nom du lieu et adresse */}
-              <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-xl border border-orange-100">
+              <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-6 rounded-md border border-orange-100">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -746,7 +746,7 @@ const EventFormPage: React.FC = () => {
               </div>
 
               {/* Catégorie */}
-              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-xl border border-purple-100">
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-md border border-purple-100">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
@@ -785,7 +785,7 @@ const EventFormPage: React.FC = () => {
               </div>
 
               {/* Gratuit/Payant */}
-              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 rounded-xl border border-emerald-100">
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 rounded-md border border-emerald-100">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
@@ -865,7 +865,7 @@ const EventFormPage: React.FC = () => {
               </div>
 
               {/* Upload d'image */}
-              <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-6 rounded-xl border border-pink-100">
+              <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-6 rounded-md border border-pink-100">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -944,7 +944,7 @@ const EventFormPage: React.FC = () => {
 
 
               {/* Contact */}
-              <div className="bg-gradient-to-r from-cyan-50 to-blue-50 p-6 rounded-xl border border-cyan-100">
+              <div className="bg-gradient-to-r from-cyan-50 to-blue-50 p-6 rounded-md border border-cyan-100">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -1010,14 +1010,14 @@ const EventFormPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/dashboard')}
-                  className="px-6 py-3 text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
+                  className="px-6 py-3 text-gray-700 bg-white border-2 border-gray-300 rounded-md hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="btn btn-primary btn-lg"
+                  className="px-6 py-3 text-white bg-aplo-purple border-2 border-aplo-purple rounded-md hover:bg-aplo-purple-dark hover:border-aplo-purple-dark transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? 'Enregistrement...' : 'Créer l\'événement'}
                 </button>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { OnboardingData } from '../../pages/OnboardingPage';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface OnboardingCompleteStepProps {
   onboardingData: OnboardingData;
@@ -10,8 +11,18 @@ const OnboardingCompleteStep: React.FC<OnboardingCompleteStepProps> = ({
   onboardingData, 
   onComplete 
 }) => {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [step, setStep] = useState(1);
+
+  // Debug des données reçues
+  console.log('🔍 OnboardingCompleteStep - données reçues:', onboardingData);
+  console.log('📧 Email adminInfo:', onboardingData.adminInfo.email);
+  console.log('📧 Email AuthContext:', user?.email);
+
+  // Debug des données reçues
+  console.log('🔍 OnboardingCompleteStep - données reçues:', onboardingData);
+  console.log('📧 Email adminInfo:', onboardingData.adminInfo.email);
 
   useEffect(() => {
     // Finalisation immédiate - pas de simulation
@@ -134,57 +145,23 @@ const OnboardingCompleteStep: React.FC<OnboardingCompleteStepProps> = ({
         </div>
       </div>
 
-      {/* Récapitulatif */}
-      <div className="grid md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-4">
-            Informations de connexion
-          </h3>
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm font-medium text-blue-800">Email de connexion</p>
-              <p className="text-blue-900">{onboardingData.adminInfo.email}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-blue-800">Commune</p>
-              <p className="text-blue-900">{onboardingData.commune.name}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-blue-800">Plan d'abonnement</p>
-              <p className="text-blue-900">{onboardingData.subscription.planName}</p>
-            </div>
+      {/* Informations de connexion */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+        <h3 className="text-lg font-semibold text-blue-900 mb-4">
+          Informations de connexion
+        </h3>
+                  <div className="grid md:grid-cols-3 gap-6">
+                      <div>
+            <p className="text-sm font-medium text-blue-800">Email de connexion</p>
+            <p className="text-blue-900">{user?.email || onboardingData.adminInfo.email || 'Non renseigné'}</p>
           </div>
-        </div>
-
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-green-900 mb-4">
-            Prochaines étapes
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-start space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-              <p className="text-sm text-green-800">
-                Vous recevrez un email de confirmation
-              </p>
-            </div>
-            <div className="flex items-start space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-              <p className="text-sm text-green-800">
-                Validation de votre identité sous 48h
-              </p>
-            </div>
-            <div className="flex items-start space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-              <p className="text-sm text-green-800">
-                Accès complet après validation
-              </p>
-            </div>
-            <div className="flex items-start space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-              <p className="text-sm text-green-800">
-                Période d'essai de 7 jours
-              </p>
-            </div>
+          <div>
+            <p className="text-sm font-medium text-blue-800">Commune</p>
+            <p className="text-blue-900">{onboardingData.commune.name}</p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-blue-800">Plan d'abonnement</p>
+            <p className="text-blue-900">{onboardingData.subscription.planName}</p>
           </div>
         </div>
       </div>
@@ -216,33 +193,17 @@ const OnboardingCompleteStep: React.FC<OnboardingCompleteStepProps> = ({
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
           Besoin d'aide ?
         </h3>
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="font-medium text-gray-900 mb-2">Support technique</h4>
-            <p className="text-sm text-gray-600 mb-2">
-              Pour toute question technique ou problème d'accès
-            </p>
-            <a 
-              href="mailto:support@aplo.fr" 
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-            >
-              support@aplo.fr
-            </a>
-          </div>
-          <div>
-            <h4 className="font-medium text-gray-900 mb-2">Documentation</h4>
-            <p className="text-sm text-gray-600 mb-2">
-              Guides d'utilisation et tutoriels
-            </p>
-            <a 
-              href="https://docs.aplo.fr" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-            >
-              Consulter la documentation
-            </a>
-          </div>
+        <div>
+          <h4 className="font-medium text-gray-900 mb-2">Support technique</h4>
+          <p className="text-sm text-gray-600 mb-2">
+            Pour toute question technique ou problème d'accès
+          </p>
+          <a 
+            href="mailto:support@aplo.fr" 
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          >
+            support@aplo.fr
+          </a>
         </div>
       </div>
 
@@ -250,7 +211,7 @@ const OnboardingCompleteStep: React.FC<OnboardingCompleteStepProps> = ({
       <div className="text-center">
         <button
           onClick={onComplete}
-          className="btn btn-primary btn-lg"
+          className="w-full px-6 py-3 text-aplo-purple bg-white border border-aplo-purple rounded-md hover:bg-aplo-purple hover:text-white transition-all duration-200 font-medium"
         >
           Accéder au dashboard
         </button>

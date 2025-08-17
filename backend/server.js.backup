@@ -60,11 +60,6 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Plans d'abonnement Stripe
 const STRIPE_PLANS = {
-  test_commune: {
-    priceId: process.env.STRIPE_TEST_COMMUNE_PRICE_ID || "price_1RtXztGCHUBcrkOY8pqvgWg7",
-    name: "Commune de test",
-    price: 0
-  },
   small_commune: {
     priceId: process.env.STRIPE_SMALL_COMMUNE_PRICE_ID,
     name: 'Petite commune',

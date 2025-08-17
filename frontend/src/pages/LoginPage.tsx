@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import onboardingService from '../services/onboardingService';
+import supabaseService from '../services/supabase';
 
 interface LoginFormData {
   email: string;
@@ -28,7 +29,7 @@ const LoginPage: React.FC = () => {
       // Connexion avec le service d'authentification
       await login(data.email, data.password);
       
-      // La redirection est gérée automatiquement par App.tsx
+      // La redirection est gérée automatiquement par AuthContext
       toast.success('Connexion réussie !');
     } catch (error: any) {
       console.error('Erreur de connexion:', error);
@@ -55,7 +56,7 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-aplo-cream overflow-hidden shadow-aplo rounded-lg border border-white/20">
+        <div className="bg-aplo-cream overflow-hidden shadow-sm rounded-md border border-white/20">
           <div className="px-6 py-8">
             <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
               <div>
@@ -67,7 +68,11 @@ const LoginPage: React.FC = () => {
                     id="email"
                     type="email"
                     autoComplete="email"
-                    className={`input ${errors.email ? 'input-error' : ''}`}
+                    className={`w-full px-4 py-3 rounded-md border transition-all duration-200 focus:ring-2 focus:ring-aplo-purple focus:border-transparent ${
+                      errors.email 
+                        ? 'border-red-300 bg-red-50' 
+                        : 'border-gray-200 hover:border-gray-300 focus:border-aplo-purple'
+                    }`}
                     placeholder="votre@email.fr"
                     {...register('email', {
                       required: 'L\'email est requis',
@@ -78,7 +83,7 @@ const LoginPage: React.FC = () => {
                     })}
                   />
                   {errors.email && (
-                    <p className="mt-1 text-sm text-danger-600">{errors.email.message}</p>
+                    <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
                   )}
                 </div>
               </div>
@@ -92,7 +97,11 @@ const LoginPage: React.FC = () => {
                     id="password"
                     type="password"
                     autoComplete="current-password"
-                    className={`input ${errors.password ? 'input-error' : ''}`}
+                    className={`w-full px-4 py-3 rounded-md border transition-all duration-200 focus:ring-2 focus:ring-aplo-purple focus:border-transparent ${
+                      errors.password 
+                        ? 'border-red-300 bg-red-50' 
+                        : 'border-gray-200 hover:border-gray-300 focus:border-aplo-purple'
+                    }`}
                     placeholder="••••••••"
                     {...register('password', {
                       required: 'Le mot de passe est requis',
@@ -103,7 +112,7 @@ const LoginPage: React.FC = () => {
                     })}
                   />
                   {errors.password && (
-                    <p className="mt-1 text-sm text-danger-600">{errors.password.message}</p>
+                    <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
                   )}
                 </div>
               </div>
@@ -112,7 +121,7 @@ const LoginPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="btn btn-primary w-full btn-lg"
+                  className="w-full px-6 py-3 text-aplo-purple bg-white border border-aplo-purple rounded-md hover:bg-aplo-purple hover:text-white transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <>
@@ -131,19 +140,35 @@ const LoginPage: React.FC = () => {
         </div>
 
         <div className="text-center space-y-4">
-                      <div className="bg-white/10 rounded-lg p-4">
+                      <div className="bg-white/10 rounded-md p-4">
               <p className="text-sm text-white/90 mb-3">
                 Nouvel Office de Tourisme ?
               </p>
-              <Link
-                to="/onboarding"
-                className="btn btn-primary"
+              <button
+                onClick={async () => {
+                  try {
+                    // 1. Déconnecter Supabase complètement
+                    await supabaseService.getClient().auth.signOut();
+                    
+                    // 2. Vider le cache et localStorage
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    
+                    // 3. Rediriger vers l'onboarding
+                    navigate('/onboarding');
+                  } catch (error) {
+                    console.error('Erreur lors du nettoyage:', error);
+                    // Rediriger quand même
+                    navigate('/onboarding');
+                  }
+                }}
+                className="inline-flex items-center px-6 py-3 text-aplo-purple bg-white border border-aplo-purple rounded-md hover:bg-aplo-purple hover:text-white transition-all duration-200 font-medium"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
                 Créer mon espace
-              </Link>
+              </button>
             </div>
             
 

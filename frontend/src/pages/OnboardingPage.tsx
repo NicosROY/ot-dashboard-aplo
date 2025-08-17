@@ -10,6 +10,7 @@ import OnboardingCompleteStep from '../components/onboarding/OnboardingCompleteS
 import { getOnboardingData, saveOnboardingData, clearOnboardingData } from '../utils/onboardingStorage';
 import supabaseService from '../services/supabase';
 import adminNotificationService from '../services/adminNotificationService';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 export interface OnboardingData {
@@ -21,6 +22,7 @@ export interface OnboardingData {
     phone: string;
     function: string;
     password: string;
+    confirmPassword: string;
   };
   
   // Étape 2: Sélection commune
@@ -34,6 +36,9 @@ export interface OnboardingData {
   kyc: {
     method: 'document';
     documentUploaded?: boolean;
+    documentPath?: string;
+    fileName?: string;
+    fileSize?: number;
     validated: boolean;
   };
   
@@ -62,9 +67,9 @@ export interface OnboardingData {
 
 const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user, isLoading: authIsLoading, isAuthenticated, onboardingStatus } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     adminInfo: {
       firstName: '',
@@ -72,7 +77,8 @@ const OnboardingPage: React.FC = () => {
       email: '',
       phone: '',
       function: '',
-      password: ''
+      password: '',
+      confirmPassword: ''
     },
     commune: {
       id: 0,
@@ -81,6 +87,7 @@ const OnboardingPage: React.FC = () => {
     },
     kyc: {
       method: 'document',
+      documentUploaded: false,
       validated: false
     },
     legal: {
@@ -99,72 +106,125 @@ const OnboardingPage: React.FC = () => {
   // Charger les données sauvegardées et vérifier l'état de connexion au montage
   useEffect(() => {
     const initializeOnboarding = async () => {
+      console.log('🚀 DÉBUT initializeOnboarding');
+      
+      // Attendre que AuthContext soit prêt
+      if (authIsLoading) {
+        console.log('⏳ AuthContext en cours de chargement, attente...');
+        return;
+      }
+      
+      // Attendre que checkUserStatus ait fini et que les états soient stables
+      if (onboardingStatus === 'checking') {
+        console.log('⏳ Statut onboarding encore en cours de vérification, attente...');
+        return;
+      }
+
       try {
         setIsLoading(true);
+        console.log('⏳ setIsLoading(true) appelé');
         
-        // Vérifier si l'utilisateur est connecté
-        const { data: { user } } = await supabaseService.getClient().auth.getUser();
+        console.log('🔍 Vérification utilisateur depuis AuthContext...');
+        console.log('👤 User depuis AuthContext:', user ? user.email : 'AUCUN USER');
+        console.log('🔐 isAuthenticated:', isAuthenticated);
         
         if (user) {
-          setCurrentUser(user);
-          console.log('Utilisateur connecté:', user.email);
+          console.log('✅ Utilisateur trouvé dans AuthContext:', user.email);
           
           // Récupérer les données depuis la base de données
+          console.log('📊 Récupération onboarding_progress...');
           const { data: dbOnboarding, error: dbError } = await supabaseService.getClient()
             .from('onboarding_progress')
             .select('*')
             .eq('id', user.id)
             .single();
 
+          console.log('📊 Résultat onboarding_progress:', { dbOnboarding, dbError });
+
           if (dbOnboarding && !dbError) {
-            console.log('Données trouvées en DB, étape:', dbOnboarding.current_step);
-            console.log('Données brutes de la DB:', dbOnboarding);
-            console.log('💳 subscription_data brut:', dbOnboarding.subscription_data);
-            console.log('💳 stripeData dans DB?', !!dbOnboarding.subscription_data?.stripeData);
+            console.log('✅ Données trouvées en DB, étape:', dbOnboarding.current_step);
+            console.log('📋 Données brutes de la DB:', dbOnboarding);
             
-            // Restaurer depuis la base de données
+            console.log('🔄 Début restauration des données...');
+            
+            // Parser les colonnes jsonb qui sont des chaînes JSON
+            let adminInfo: any = {};
+            if (dbOnboarding.admin_info) {
+              if (typeof dbOnboarding.admin_info === 'string') {
+                try {
+                  adminInfo = JSON.parse(dbOnboarding.admin_info);
+                } catch (e) {
+                  console.error('❌ Erreur parsing admin_info:', e);
+                  adminInfo = {};
+                }
+              } else {
+                adminInfo = dbOnboarding.admin_info;
+              }
+            }
+            const communeData = dbOnboarding.commune_data ? 
+              (typeof dbOnboarding.commune_data === 'string' ? JSON.parse(dbOnboarding.commune_data) : dbOnboarding.commune_data) : {};
+            const kycData = dbOnboarding.kyc_data ? 
+              (typeof dbOnboarding.kyc_data === 'string' ? JSON.parse(dbOnboarding.kyc_data) : dbOnboarding.kyc_data) : {};
+            const legalData = dbOnboarding.legal_data ? 
+              (typeof dbOnboarding.legal_data === 'string' ? JSON.parse(dbOnboarding.legal_data) : dbOnboarding.legal_data) : {};
+            const subscriptionData = dbOnboarding.subscription_data ? 
+              (typeof dbOnboarding.subscription_data === 'string' ? JSON.parse(dbOnboarding.subscription_data) : dbOnboarding.subscription_data) : {};
+            
+            console.log('🔍 Données parsées:', { adminInfo, communeData, kycData, legalData, subscriptionData });
+            
+            // Restaurer les données existantes
             const restoredData: OnboardingData = {
               adminInfo: {
-                firstName: dbOnboarding.admin_info?.firstName || '',
-                lastName: dbOnboarding.admin_info?.lastName || '',
-                email: dbOnboarding.admin_info?.email || '',
-                phone: dbOnboarding.admin_info?.phone || '',
-                function: dbOnboarding.admin_info?.function || '',
-                password: ''
+                firstName: adminInfo.firstName || '',
+                lastName: adminInfo.lastName || '',
+                email: adminInfo.email || user.email || '',
+                phone: adminInfo.phone || '',
+                function: adminInfo.function || '',
+                password: adminInfo.password || '',
+                confirmPassword: adminInfo.confirmPassword || ''
               },
-              commune: dbOnboarding.commune_data || {
-                id: 0,
-                name: '',
-                population: 0
+              commune: {
+                id: communeData.id || 0,
+                name: communeData.name || '',
+                population: communeData.population || 0
               },
-              kyc: dbOnboarding.kyc_data || {
-                method: 'email',
-                validated: false
+              kyc: {
+                method: kycData.method || 'document',
+                documentUploaded: kycData.documentUploaded || false,
+                validated: kycData.validated || false,
+                fileName: kycData.fileName || '',
+                fileSize: kycData.fileSize || 0,
+                documentPath: kycData.documentPath || ''
               },
-              legal: dbOnboarding.legal_data || {
-                cgvAccepted: false,
-                cguAccepted: false,
-                responsibilityAccepted: false
+              legal: {
+                cgvAccepted: legalData.cgvAccepted || false,
+                cguAccepted: legalData.cguAccepted || false,
+                responsibilityAccepted: legalData.responsibilityAccepted || false
               },
               subscription: {
-                planId: dbOnboarding.subscription_data?.planId || '',
-                planName: dbOnboarding.subscription_data?.planName || '',
-                price: dbOnboarding.subscription_data?.price || 0,
-                paymentCompleted: dbOnboarding.subscription_data?.paymentCompleted || false,
-                stripeData: dbOnboarding.subscription_data?.stripeData || undefined
+                planId: subscriptionData.planId || '',
+                planName: subscriptionData.planName || '',
+                price: subscriptionData.price || 0,
+                paymentCompleted: subscriptionData.paymentCompleted || false,
+                stripeData: subscriptionData.stripeData
               }
             };
 
+            console.log('📋 Données restaurées:', restoredData);
+            console.log('📧 Email dans admin_info DB:', dbOnboarding.admin_info?.email);
+            console.log('📧 Email dans user AuthContext:', user.email);
+            console.log('📧 Email final restauré:', restoredData.adminInfo.email);
+            console.log('🔄 Appel setOnboardingData...');
             setOnboardingData(restoredData);
+            console.log('🔄 Appel setCurrentStep avec:', dbOnboarding.current_step);
             setCurrentStep(dbOnboarding.current_step);
-            
-            // Mettre à jour le localStorage
-            saveOnboardingData(restoredData, dbOnboarding.current_step);
+            console.log('✅ Restauration terminée');
             
           } else {
-            console.log('Pas de données en DB, création nouvelle entrée');
+            console.log('❌ Pas de données en DB, création nouvelle entrée');
             
             // Créer une nouvelle entrée d'onboarding
+            console.log('🆕 Création nouvelle entrée onboarding_progress...');
             const { error: createError } = await supabaseService.getClient()
               .from('onboarding_progress')
               .insert({
@@ -179,27 +239,40 @@ const OnboardingPage: React.FC = () => {
                 updated_at: new Date().toISOString()
               });
 
+            console.log('🆕 Résultat création:', createError);
+
             if (createError && createError.code !== '23505') {
-              console.error('Erreur création onboarding:', createError);
+              console.error('❌ Erreur création onboarding:', createError);
             }
 
             // Commencer à l'étape 1
+            console.log('🔄 setCurrentStep(1)');
             setCurrentStep(1);
           }
+        } else if (isAuthenticated) {
+          // Cas bizarre : isAuthenticated mais pas de user
+          console.log('⚠️ isAuthenticated=true mais pas de user, création étape 1');
+          setCurrentStep(1);
         } else {
-          console.log('Utilisateur non connecté');
+          // Pas d'utilisateur connecté, mais on peut quand même permettre l'onboarding
+          console.log('❌ Utilisateur non connecté, démarrage étape 1');
+          console.log('🔄 setCurrentStep(1) pour user non connecté');
           setCurrentStep(1);
         }
       } catch (error) {
-        console.error('Erreur initialisation:', error);
+        console.error('💥 ERREUR dans initializeOnboarding:', error);
+        console.log('🔄 setCurrentStep(1) après erreur');
         setCurrentStep(1);
       } finally {
+        console.log('🏁 FINALLY: setIsLoading(false)');
         setIsLoading(false);
+        console.log('✅ initializeOnboarding TERMINÉ');
       }
     };
 
+    console.log('🎬 Lancement initializeOnboarding...');
     initializeOnboarding();
-  }, []);
+  }, [user, authIsLoading, isAuthenticated]); // RETOUR aux dépendances originales
 
   // 1. totalSteps = 6
   const totalSteps = 6;
@@ -210,26 +283,78 @@ const OnboardingPage: React.FC = () => {
       const { data: { user } } = await supabaseService.getClient().auth.getUser();
       if (!user) return;
 
+      console.log('💾 Sauvegarde en base - Étape:', step);
+      console.log('📊 Données à sauvegarder:', data);
+
+      // Récupérer les données existantes pour éviter l'écrasement
+      const { data: existingData, error: fetchError } = await supabaseService.getClient()
+        .from('onboarding_progress')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('❌ Erreur récupération données existantes:', fetchError);
+        return;
+      }
+
+      // Fonction de fusion intelligente qui préserve les données existantes
+      const mergeData = (existing: any, newData: any) => {
+        if (!existing) return newData;
+        if (!newData) return existing;
+        
+        // Parser les données existantes si elles sont des chaînes JSON
+        let parsedExisting = existing;
+        if (typeof existing === 'string') {
+          try {
+            parsedExisting = JSON.parse(existing);
+          } catch (e) {
+            console.warn('⚠️ Erreur parsing JSON existant:', e);
+            parsedExisting = {};
+          }
+        }
+        
+        // Fusionner en préservant l'existant et en ajoutant seulement le nouveau non-vide
+        const merged = { ...parsedExisting };
+        Object.keys(newData).forEach(key => {
+          if (newData[key] !== undefined && newData[key] !== null && newData[key] !== '') {
+            // Si c'est un objet, fusionner récursivement
+            if (typeof newData[key] === 'object' && !Array.isArray(newData[key])) {
+              merged[key] = mergeData(parsedExisting[key] || {}, newData[key]);
+            } else {
+              merged[key] = newData[key];
+            }
+          }
+        });
+        return merged;
+      };
+
+      // Fusionner les données existantes avec les nouvelles (PRÉSERVER L'EXISTANT)
+      const mergedData = {
+        id: user.id,
+        current_step: step,
+        admin_info: mergeData(existingData?.admin_info, data.adminInfo),
+        commune_data: data.commune.id ? data.commune : existingData?.commune_data,
+        kyc_data: mergeData(existingData?.kyc_data, data.kyc),
+        legal_data: mergeData(existingData?.legal_data, data.legal),
+        subscription_data: mergeData(existingData?.subscription_data, data.subscription),
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('🔄 Données fusionnées (PRÉSERVATION EXISTANT):', mergedData);
+      console.log('📊 Données existantes préservées:', existingData);
+
       const { error } = await supabaseService.getClient()
         .from('onboarding_progress')
-        .upsert({
-          id: user.id,
-          current_step: step,
-          admin_info: data.adminInfo,
-          commune_data: data.commune,
-          kyc_data: data.kyc,
-          legal_data: data.legal,
-          subscription_data: data.subscription,
-          updated_at: new Date().toISOString()
-        });
+        .upsert(mergedData);
 
       if (error) {
-        console.error('Erreur sauvegarde DB:', error);
+        console.error('❌ Erreur sauvegarde DB:', error);
       } else {
-        console.log('Sauvegarde DB réussie, étape:', step);
+        console.log('✅ Sauvegarde DB réussie, étape:', step);
       }
     } catch (error) {
-      console.error('Erreur sauvegarde DB:', error);
+      console.error('❌ Erreur sauvegarde DB:', error);
     }
   };
 
@@ -240,12 +365,52 @@ const OnboardingPage: React.FC = () => {
     // Sauvegarder automatiquement
     saveOnboardingData(newData, currentStep);
     await saveToDatabase(newData, currentStep);
+    
+    console.log('💾 Données mises à jour et sauvegardées:', updates);
+    console.log('📊 Nouvelles données complètes:', newData);
   };
 
   const nextStep = () => {
     if (currentStep < totalSteps) {
       const newStep = currentStep + 1;
       setCurrentStep(newStep);
+      
+      // Si on passe du step 1 au step 2, créer l'onboarding_progress
+      if (currentStep === 1 && newStep === 2) {
+        console.log('📝 Création de l\'onboarding_progress au passage du step 1 au step 2');
+        
+        // Créer l'onboarding_progress avec les données du step 1
+        const createOnboardingProgress = async () => {
+          try {
+            const { data: { user } } = await supabaseService.getClient().auth.getUser();
+            if (!user) return;
+
+            const { error: createError } = await supabaseService.getClient()
+              .from('onboarding_progress')
+              .insert({
+                id: user.id,
+                current_step: newStep,
+                admin_info: onboardingData.adminInfo,
+                commune_data: onboardingData.commune,
+                kyc_data: onboardingData.kyc,
+                legal_data: onboardingData.legal,
+                subscription_data: onboardingData.subscription,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+
+            if (createError) {
+              console.error('❌ Erreur création onboarding_progress:', createError);
+            } else {
+              console.log('✅ Onboarding_progress créé avec succès');
+            }
+          } catch (error) {
+            console.error('❌ Erreur lors de la création onboarding_progress:', error);
+          }
+        };
+
+        createOnboardingProgress();
+      }
       
       // Sauvegarder la progression
       saveOnboardingData(onboardingData, newStep);
@@ -292,54 +457,144 @@ const OnboardingPage: React.FC = () => {
   // Nettoyer les données à la fin de l'onboarding
   const handleOnboardingComplete = async () => {
     try {
-      // Vérification des données requises
-      console.log('🔍 Vérification des données avant finalisation...');
+      // Récupérer les données fraîches depuis la base
+      const { data: { user } } = await supabaseService.getClient().auth.getUser();
+      if (!user) {
+        toast.error('Utilisateur non connecté');
+        return;
+      }
+
+      console.log('🔍 Récupération des données fraîches depuis la base...');
+      const { data: dbOnboarding, error: dbError } = await supabaseService.getClient()
+        .from('onboarding_progress')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (dbError || !dbOnboarding) {
+        console.error('❌ Erreur récupération données:', dbError);
+        toast.error('Erreur lors de la récupération des données');
+        return;
+      }
+
+      // Parser TOUTES les données depuis la base
+      let adminInfo: any = {};
+      let communeData: any = {};
+      let kycData: any = {};
+      let legalData: any = {};
+      let subscriptionData: any = {};
+
+      // Parser admin_info
+      if (dbOnboarding.admin_info) {
+        if (typeof dbOnboarding.admin_info === 'string') {
+          try {
+            adminInfo = JSON.parse(dbOnboarding.admin_info);
+          } catch (e) {
+            console.error('❌ Erreur parsing admin_info:', e);
+            adminInfo = {};
+          }
+        } else {
+          adminInfo = dbOnboarding.admin_info;
+        }
+      }
+
+      // Parser commune_data
+      if (dbOnboarding.commune_data) {
+        if (typeof dbOnboarding.commune_data === 'string') {
+          try {
+            communeData = JSON.parse(dbOnboarding.commune_data);
+          } catch (e) {
+            console.error('❌ Erreur parsing commune_data:', e);
+            communeData = {};
+          }
+        } else {
+          communeData = dbOnboarding.commune_data;
+        }
+      }
+
+      // Parser kyc_data
+      if (dbOnboarding.kyc_data) {
+        if (typeof dbOnboarding.kyc_data === 'string') {
+          try {
+            kycData = JSON.parse(dbOnboarding.kyc_data);
+          } catch (e) {
+            console.error('❌ Erreur parsing kyc_data:', e);
+            kycData = {};
+          }
+        } else {
+          kycData = dbOnboarding.kyc_data;
+        }
+      }
+
+      // Parser legal_data
+      if (dbOnboarding.legal_data) {
+        if (typeof dbOnboarding.legal_data === 'string') {
+          try {
+            legalData = JSON.parse(dbOnboarding.legal_data);
+          } catch (e) {
+            console.error('❌ Erreur parsing legal_data:', e);
+            legalData = {};
+          }
+        } else {
+          legalData = dbOnboarding.legal_data;
+        }
+      }
+
+      // Parser subscription_data
+      if (dbOnboarding.subscription_data) {
+        if (typeof dbOnboarding.subscription_data === 'string') {
+          try {
+            subscriptionData = JSON.parse(dbOnboarding.subscription_data);
+          } catch (e) {
+            console.error('❌ Erreur parsing subscription_data:', e);
+            subscriptionData = {};
+          }
+        } else {
+          subscriptionData = dbOnboarding.subscription_data;
+        }
+      }
+
+      console.log('🔍 Vérification des données depuis la base...');
+      console.log('👤 adminInfo depuis base:', adminInfo);
+      console.log('🏘️ communeData depuis base:', communeData);
+      console.log('📄 kycData depuis base:', kycData);
+      console.log('⚖️ legalData depuis base:', legalData);
+      console.log('💳 subscriptionData depuis base:', subscriptionData);
       
-      if (!onboardingData.adminInfo.firstName || !onboardingData.adminInfo.lastName) {
+      if (!adminInfo.firstName || !adminInfo.lastName) {
+        console.error('❌ VALIDATION ÉCHOUÉE - firstName ou lastName manquant');
+        console.error('❌ firstName:', adminInfo.firstName);
+        console.error('❌ lastName:', adminInfo.lastName);
         toast.error('Informations administrateur manquantes');
         return;
       }
       
-      if (!onboardingData.commune.id) {
+      if (!communeData.id) {
         toast.error('Commune non sélectionnée');
         return;
       }
       
       // Vérification que le paiement est complété
-      if (!onboardingData.subscription.paymentCompleted && currentStep < 6) {
+      if (!subscriptionData.paymentCompleted && currentStep < 6) {
         toast.error('Vous devez compléter votre paiement avant de finaliser l\'onboarding.');
         return;
       }
-      
-      // Si on est à l'étape 6, on considère que le paiement est complété
-      if (currentStep === 6 && !onboardingData.subscription.paymentCompleted) {
-        const updatedData = {
-          ...onboardingData,
-          subscription: {
-            ...onboardingData.subscription,
-            paymentCompleted: true
-          }
-        };
-        setOnboardingData(updatedData);
-        await saveToDatabase(updatedData, currentStep);
-      }
 
-      // Récupérer l'utilisateur connecté
-      const { data: { user } } = await supabaseService.getClient().auth.getUser();
+      // Récupérer l'utilisateur connecté (déjà récupéré plus haut)
       
       if (user) {
         console.log('🚀 Début de la finalisation de l\'onboarding pour:', user.email);
         console.log('📊 Données onboarding:', onboardingData);
 
-        // 1. Créer ou mettre à jour le profil utilisateur avec TOUTES les données
+        // 1. Créer ou mettre à jour le profil utilisateur avec TOUTES les données de la base
         const profileData = {
           id: user.id,
-          email: onboardingData.adminInfo.email,
-          first_name: onboardingData.adminInfo.firstName,
-          last_name: onboardingData.adminInfo.lastName,
-          phone: onboardingData.adminInfo.phone,
-          function: onboardingData.adminInfo.function,
-          commune_id: onboardingData.commune.id,
+          email: adminInfo.email,
+          first_name: adminInfo.firstName,
+          last_name: adminInfo.lastName,
+          phone: adminInfo.phone,
+          function: adminInfo.function,
+          commune_id: communeData.id,
           role: 'admin',
           is_active: true
         };
@@ -374,6 +629,31 @@ const OnboardingPage: React.FC = () => {
           console.error('❌ Erreur création acceptations légales:', legalError);
         } else {
           console.log('✅ Acceptations légales créées');
+        }
+
+        // 3. Créer les documents KYC si un document a été uploadé
+        if (onboardingData.kyc.documentUploaded && onboardingData.kyc.documentPath) {
+          console.log('📄 Création document KYC avec path:', onboardingData.kyc.documentPath);
+          
+          const { error: kycError } = await supabaseService.getClient()
+            .from('kyc_documents')
+            .insert({
+              user_id: user.id,
+              commune_id: onboardingData.commune.id,
+              file_name: onboardingData.kyc.fileName || 'document_identite.pdf',
+              file_path: onboardingData.kyc.documentPath,
+              file_size: onboardingData.kyc.fileSize || 0,
+              file_type: 'application/pdf',
+              status: 'pending_validation'
+            });
+
+          if (kycError) {
+            console.error('❌ Erreur création document KYC:', kycError);
+          } else {
+            console.log('✅ Document KYC créé');
+          }
+        } else {
+          console.log('⚠️ Pas de document KYC à créer');
         }
 
         // Création d'invitations d'équipe désactivée pour la version mono-user
@@ -458,9 +738,11 @@ const OnboardingPage: React.FC = () => {
       console.log('🎉 Onboarding finalisé avec succès !');
       toast.success('Onboarding terminé avec succès ! Votre espace est maintenant actif.');
       
-      // Redirection immédiate vers le dashboard
-      console.log('🔄 Redirection vers le dashboard...');
-      window.location.href = '/dashboard';
+      // Redirection avec délai pour voir les logs
+      console.log('🔄 Redirection vers le dashboard dans 1 minute...');
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 60000);
     } catch (error) {
       console.error('❌ Erreur lors de la finalisation:', error);
       toast.error('Erreur lors de la finalisation de l\'onboarding');
@@ -575,7 +857,7 @@ const OnboardingPage: React.FC = () => {
             data={onboardingData.subscription}
             communePopulation={onboardingData.commune.population}
             communeId={onboardingData.commune.id}
-            userId={currentUser?.id || ""}
+            userId={user?.id || ""}
             onUpdate={async (data: OnboardingData['subscription']) => await updateOnboardingData({ subscription: data })}
             onNext={nextStep}
             onPrev={prevStep}

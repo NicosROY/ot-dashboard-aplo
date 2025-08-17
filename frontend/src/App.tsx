@@ -17,8 +17,11 @@ import TeamInvitationPage from './pages/TeamInvitationPage';
 import CommuneInfoPage from './pages/CommuneInfoPage';
 import LoadingSpinner from './components/LoadingSpinner';
 import Navigation from './components/Navigation';
+import supabaseService from './services/supabase';
 
 const SUPERADMIN_ID = '39d145c4-20d9-495a-9a57-5c4cd3553089';
+
+
 
 // Composant pour les routes protégées
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -38,11 +41,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 // Layout principal avec header fixe
 const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header fixe */}
+    <div className="min-h-screen bg-gray-50">
       <Navigation />
-      
-      {/* Contenu dynamique */}
       <main className="pt-16">
         {children}
       </main>
@@ -52,21 +52,30 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 // Composant principal de l'application
 const AppContent: React.FC = () => {
-  const { isAuthenticated, user, isOnboardingComplete, onboardingStatus } = useAuth();
+  const { isAuthenticated, user, isOnboardingComplete, onboardingStatus, isLoading } = useAuth();
 
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <div className="min-h-screen bg-gray-50">
         <Routes>
+          {/* Redirection automatique vers onboarding si nécessaire */}
+          <Route 
+            path="/" 
+            element={
+              !isLoading && !isAuthenticated && onboardingStatus === 'incomplete' ? 
+                <Navigate to="/onboarding" replace /> : 
+                isAuthenticated ? 
+                  <Navigate to="/dashboard" replace /> : 
+                  <Navigate to="/login" replace />
+            } 
+          />
+          
           {/* Route publique */}
           <Route 
             path="/login" 
             element={
               isAuthenticated ? 
-                (isOnboardingComplete ? 
-                  <Navigate to="/dashboard" replace /> : 
-                  <Navigate to="/onboarding" replace />
-                ) : 
+                <Navigate to="/dashboard" replace /> : 
                 <LoginPage />
             } 
           />
@@ -85,9 +94,11 @@ const AppContent: React.FC = () => {
           <Route 
             path="/onboarding" 
             element={
-              isAuthenticated && isOnboardingComplete ? 
+              isAuthenticated ? 
                 <Navigate to="/dashboard" replace /> : 
-                <OnboardingPage />
+                onboardingStatus === 'incomplete' || onboardingStatus === 'checking' ? 
+                  <OnboardingPage /> : 
+                  <Navigate to="/login" replace />
             } 
           />
 
@@ -106,15 +117,9 @@ const AppContent: React.FC = () => {
             path="/dashboard" 
             element={
               <ProtectedRoute>
-                {isOnboardingComplete ? (
-                  <MainLayout>
-                    <DashboardPage />
-                  </MainLayout>
-                ) : onboardingStatus === 'checking' ? (
-                  <LoadingSpinner />
-                ) : (
-                  <Navigate to="/onboarding" replace />
-                )}
+                <MainLayout>
+                  <DashboardPage />
+                </MainLayout>
               </ProtectedRoute>
             } 
           />
@@ -123,15 +128,9 @@ const AppContent: React.FC = () => {
             path="/events" 
             element={
               <ProtectedRoute>
-                {isOnboardingComplete ? (
-                  <MainLayout>
-                    <EventsPage />
-                  </MainLayout>
-                ) : onboardingStatus === 'checking' ? (
-                  <LoadingSpinner />
-                ) : (
-                  <Navigate to="/onboarding" replace />
-                )}
+                <MainLayout>
+                  <EventsPage />
+                </MainLayout>
               </ProtectedRoute>
             } 
           />
@@ -140,32 +139,9 @@ const AppContent: React.FC = () => {
             path="/events/new" 
             element={
               <ProtectedRoute>
-                {isOnboardingComplete ? (
-                  <MainLayout>
-                    <EventFormPage />
-                  </MainLayout>
-                ) : onboardingStatus === 'checking' ? (
-                  <LoadingSpinner />
-                ) : (
-                  <Navigate to="/onboarding" replace />
-                )}
-              </ProtectedRoute>
-            } 
-          />
-          
-          <Route 
-            path="/events/:id/edit" 
-            element={
-              <ProtectedRoute>
-                {isOnboardingComplete ? (
-                  <MainLayout>
-                    <EventFormPage />
-                  </MainLayout>
-                ) : onboardingStatus === 'checking' ? (
-                  <LoadingSpinner />
-                ) : (
-                  <Navigate to="/onboarding" replace />
-                )}
+                <MainLayout>
+                  <EventFormPage />
+                </MainLayout>
               </ProtectedRoute>
             } 
           />
@@ -174,38 +150,53 @@ const AppContent: React.FC = () => {
             path="/events/:id" 
             element={
               <ProtectedRoute>
-                {isOnboardingComplete ? (
-                  <MainLayout>
-                    <EventDetailPage />
-                  </MainLayout>
-                ) : onboardingStatus === 'checking' ? (
-                  <LoadingSpinner />
-                ) : (
-                  <Navigate to="/onboarding" replace />
-                )}
+                <MainLayout>
+                  <EventDetailPage />
+                </MainLayout>
               </ProtectedRoute>
             } 
           />
           
-          {/* Route publique pour voir les détails d'un événement (depuis l'admin) */}
           <Route 
-            path="/admin/events/:id" 
-            element={<AdminEventDetailPage />}
+            path="/events/:id/edit" 
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <EventFormPage />
+                </MainLayout>
+              </ProtectedRoute>
+            } 
           />
           
           <Route 
-            path="/commune-info" 
+            path="/admin/events/:id" 
             element={
               <ProtectedRoute>
-                {isOnboardingComplete ? (
-                  <MainLayout>
-                    <CommuneInfoPage />
-                  </MainLayout>
-                ) : onboardingStatus === 'checking' ? (
-                  <LoadingSpinner />
-                ) : (
-                  <Navigate to="/onboarding" replace />
-                )}
+                <MainLayout>
+                  <AdminEventDetailPage />
+                </MainLayout>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/team/invitation" 
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <TeamInvitationPage />
+                </MainLayout>
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/commune/info" 
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <CommuneInfoPage />
+                </MainLayout>
               </ProtectedRoute>
             } 
           />
@@ -223,18 +214,7 @@ const AppContent: React.FC = () => {
             }
           />
           
-          {/* Redirection par défaut */}
-          <Route 
-            path="/" 
-            element={
-              isAuthenticated ? 
-                (isOnboardingComplete ? 
-                  <Navigate to="/dashboard" replace /> : 
-                  <Navigate to="/onboarding" replace />
-                ) : 
-                <Navigate to="/login" replace />
-            } 
-          />
+
           
           {/* Route 404 */}
           <Route 

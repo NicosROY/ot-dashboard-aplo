@@ -195,10 +195,10 @@ const DashboardPage: React.FC = () => {
         {/* Bandeau de métriques */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-r from-aplo-orange to-aplo-yellow rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-r from-aplo-orange to-aplo-yellow rounded-md flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
@@ -211,10 +211,10 @@ const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-r from-aplo-yellow to-aplo-orange rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-r from-aplo-yellow to-aplo-orange rounded-md flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -227,10 +227,10 @@ const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-r from-aplo-purple to-aplo-purple-dark rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-r from-aplo-purple to-aplo-purple-dark rounded-md flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -243,10 +243,10 @@ const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 rounded-md flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -259,10 +259,10 @@ const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="bg-white rounded-md shadow-sm border border-gray-100 p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-r from-aplo-purple to-aplo-orange rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-r from-aplo-purple to-aplo-orange rounded-md flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                     </svg>
@@ -280,7 +280,7 @@ const DashboardPage: React.FC = () => {
         {/* Sections d'événements - Toutes en pleine largeur */}
         
         {/* Section Événements validés */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 mb-8">
+        <div className="bg-white rounded-md shadow-sm border border-gray-100 mb-8">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -307,7 +307,7 @@ const DashboardPage: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 {approvedEvents.slice(0, 3).map((event) => (
-                  <div key={event.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                  <div key={event.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 hover:shadow-sm transition-all duration-200">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 pr-4">
                         <h3 className="text-lg font-semibold text-gray-900 mb-1 leading-tight truncate">{event.title}</h3>
@@ -376,7 +376,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Section Événements en attente */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 mb-8">
+        <div className="bg-white rounded-md shadow-sm border border-gray-100 mb-8">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -412,7 +412,7 @@ const DashboardPage: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 {pendingEvents.slice(0, 3).map((event) => (
-                  <div key={event.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                  <div key={event.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 hover:shadow-sm transition-all duration-200">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 pr-4">
                         <h3 className="text-lg font-semibold text-gray-900 mb-1 leading-tight truncate">{event.title}</h3>
@@ -473,7 +473,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Section Événements refusés */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100">
+        <div className="bg-white rounded-md shadow-sm border border-gray-100">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -500,7 +500,7 @@ const DashboardPage: React.FC = () => {
             ) : (
               <div className="space-y-4">
                 {rejectedEvents.slice(0, 3).map((event) => (
-                  <div key={event.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                  <div key={event.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 hover:shadow-sm transition-all duration-200">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 pr-4">
                         <h3 className="text-lg font-semibold text-gray-900 mb-1 leading-tight truncate">{event.title}</h3>

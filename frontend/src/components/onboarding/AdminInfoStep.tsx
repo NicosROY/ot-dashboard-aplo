@@ -11,6 +11,7 @@ interface AdminInfoStepProps {
     phone: string;
     function: string;
     password: string;
+    confirmPassword: string;
   };
   onUpdate: (data: AdminInfoStepProps['data']) => void;
   onNext: () => void;
@@ -46,21 +47,10 @@ const AdminInfoStep: React.FC<AdminInfoStepProps> = ({ data, onUpdate, onNext })
   useEffect(() => {
     if (isInitialized) return;
     
-    const savedData = localStorage.getItem('aplo_onboarding_data');
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.data?.adminInfo) {
-          const savedAdminInfo = parsed.data.adminInfo;
-          setFormData(savedAdminInfo);
-          // Ne pas appeler onUpdate ici pour éviter la boucle
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des données sauvegardées:', error);
-      }
-    }
+    // Utiliser les données passées en props, pas le cache
+    setFormData(data);
     setIsInitialized(true);
-  }, [isInitialized]);
+  }, [isInitialized, data]);
 
   // Nettoyer le timeout au démontage
   useEffect(() => {
@@ -168,6 +158,12 @@ const AdminInfoStep: React.FC<AdminInfoStepProps> = ({ data, onUpdate, onNext })
       newErrors.password = 'Le mot de passe doit contenir au moins 8 caractères';
     }
 
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'La confirmation du mot de passe est requise';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -213,17 +209,20 @@ const AdminInfoStep: React.FC<AdminInfoStepProps> = ({ data, onUpdate, onNext })
       }
 
       // Créer le compte utilisateur avec connexion automatique
+      console.log('🚀 Début du signUp pour:', formData.email);
+      
       const { data: authData, error: authError } = await supabaseService.getClient().auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?type=signup`,
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName
           }
         }
       });
+
+      console.log('📋 Résultat signUp:', { authData, authError });
 
       if (authError) {
         // Gestion simple des erreurs
@@ -319,6 +318,38 @@ const AdminInfoStep: React.FC<AdminInfoStepProps> = ({ data, onUpdate, onNext })
 
       // Compte créé avec succès
       if (authData.user) {
+        console.log('✅ Compte créé avec succès:', authData.user.id);
+        
+        // Créer l'onboarding_progress avec les données du formulaire
+        console.log('📝 Création de l\'onboarding_progress pour:', authData.user.id);
+        
+        const { error: onboardingError } = await supabaseService.getClient()
+          .from('onboarding_progress')
+          .insert({
+            id: authData.user.id,
+            current_step: 1,
+            admin_info: {
+              firstName: formData.firstName,
+              lastName: formData.lastName,
+              email: formData.email,
+              phone: formData.phone,
+              function: formData.function,
+              password: formData.password
+            },
+            commune_data: null,
+            kyc_data: null,
+            legal_data: null,
+            subscription_data: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (onboardingError) {
+          console.error('❌ Erreur création onboarding_progress:', onboardingError);
+        } else {
+          console.log('✅ Onboarding_progress créé avec succès');
+        }
+
         // Vérifier si l'email a été envoyé
         if (authData.session === null) {
           // Email de vérification envoyé - NE PAS PASSER À L'ÉTAPE SUIVANTE
@@ -574,28 +605,24 @@ const AdminInfoStep: React.FC<AdminInfoStepProps> = ({ data, onUpdate, onNext })
           )}
         </div>
 
-        {/* Informations importantes */}
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">
-                Informations importantes
-              </h3>
-              <div className="mt-2 text-sm text-blue-700">
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Vous serez l'administrateur principal du compte</li>
-                  <li>Vous pourrez inviter jusqu'à 4 utilisateurs supplémentaires</li>
-                  <li>Ces informations seront utilisées pour la facturation</li>
-                  <li>Votre email servira d'identifiant de connexion</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+        {/* Confirmation du mot de passe */}
+        <div>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+            Confirmation du mot de passe *
+          </label>
+          <input
+            type="password"
+            id="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="Confirmez votre mot de passe"
+          />
+          {errors.confirmPassword && (
+            <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+          )}
         </div>
 
         {/* Bouton de soumission */}
@@ -603,7 +630,7 @@ const AdminInfoStep: React.FC<AdminInfoStepProps> = ({ data, onUpdate, onNext })
           <button
             type="submit"
             disabled={isLoading}
-            className="btn btn-primary w-full"
+            className="w-full px-6 py-3 text-aplo-purple bg-white border border-aplo-purple rounded-md hover:bg-aplo-purple hover:text-white transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <span className="flex items-center">

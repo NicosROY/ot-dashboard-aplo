@@ -20,7 +20,7 @@ const PDFViewerModal: React.FC<PDFViewerModalProps> = ({ url, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/40">
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 md:mx-0 md:w-4/5 lg:w-3/5 min-h-[60vh] flex flex-col">
+              <div className="relative bg-white rounded-md shadow-sm w-full max-w-4xl mx-4 md:mx-0 md:w-4/5 lg:w-3/5 min-h-[60vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-2xl">
           <div className="truncate font-semibold text-gray-800 text-base md:text-lg" title={fileName}>{fileName}</div>

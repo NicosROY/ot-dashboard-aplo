@@ -47,55 +47,11 @@ class SupabaseService {
         throw new Error('Utilisateur non trouvé');
       }
 
-      // Récupérer les données utilisateur depuis la table user_profiles
-      const { data: userData, error: userError } = await this.supabase
-        .from('user_profiles')
-        .select(`
-          *,
-          communes(id, name, logo_url)
-        `)
-        .eq('id', data.user.id)
-        .maybeSingle();
-
-      // Si pas de profil, créer un profil par défaut
-      let finalUserData = userData;
-      if (!userData && !userError) {
-        const { data: newUserData, error: createError } = await this.supabase
-          .from('user_profiles')
-          .insert({
-            id: data.user.id,
-            email: data.user.email,
-            role: 'user',
-            first_name: data.user.user_metadata?.first_name || '',
-            last_name: data.user.user_metadata?.last_name || ''
-          })
-          .select(`
-            *,
-            communes(id, name, logo_url)
-          `)
-          .single();
-
-        if (createError) {
-          console.error('Erreur création profil:', createError);
-          // Continuer avec les données de base de l'utilisateur
-          finalUserData = {
-            id: data.user.id,
-            email: data.user.email,
-            role: 'user',
-            first_name: data.user.user_metadata?.first_name || '',
-            last_name: data.user.user_metadata?.last_name || '',
-            commune_id: null,
-            communes: null
-          };
-        } else {
-          finalUserData = newUserData;
-        }
-      }
-
+      // AuthContext gère la vérification du statut utilisateur
       return {
         success: true,
         token: data.session?.access_token || '',
-        user: finalUserData,
+        user: undefined, // AuthContext vérifiera le statut
         expiresIn: data.session?.expires_in?.toString() || '3600'
       };
     } catch (error: any) {

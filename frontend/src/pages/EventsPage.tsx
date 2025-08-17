@@ -235,7 +235,7 @@ const EventsPage: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredEvents.map((event) => (
-              <div key={event.id} className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-200">
+                              <div key={event.id} className="bg-white rounded-md shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-200">
                 {/* Header avec titre et badge */}
                 <div className="p-6 pb-4">
                   <div className="flex items-start justify-between mb-3">
@@ -328,7 +328,7 @@ const EventsPage: React.FC = () => {
       {/* Modal de confirmation de suppression */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all">
+          <div className="bg-white rounded-md shadow-sm max-w-md w-full mx-4 transform transition-all">
             {/* Header avec icône d'avertissement */}
             <div className="bg-red-50 rounded-t-2xl p-6 border-b border-red-100">
               <div className="flex items-center justify-center mb-4">

@@ -15,19 +15,137 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingStatus, setOnboardingStatus] = useState<'checking' | 'complete' | 'incomplete'>('checking');
+  const [onboardingStep, setOnboardingStep] = useState<number>(0);
+  const [isCheckingUserStatus, setIsCheckingUserStatus] = useState(false); // Flag pour éviter le double appel
+  const [hasProcessedSignIn, setHasProcessedSignIn] = useState(false); // Flag pour éviter la boucle
+  const [hasInitialized, setHasInitialized] = useState(false); // Flag pour éviter l'initialisation en boucle
 
-  // Vérifier le statut complet de l'onboarding
-  const checkOnboardingStatus = useCallback(async (userId: string): Promise<'complete' | 'incomplete'> => {
+  // Écouter les changements d'état d'authentification
+  useEffect(() => {
+    // Éviter l'initialisation en boucle
+    if (hasInitialized) {
+      console.log('🚫 AuthProvider déjà initialisé, ignoré');
+      return;
+    }
+    
+    console.log('🔍 Configuration de l\'écouteur d\'authentification...');
+    setHasInitialized(true);
+    
+    const { data: { subscription } } = supabaseService.getClient().auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔄 Événement d\'authentification:', event, 'Session:', session?.user?.email);
+        
+        if (event === 'SIGNED_IN' && session) {
+          console.log('✅ Utilisateur connecté:', session.user.email);
+          
+          // Éviter la boucle infinie
+          if (hasProcessedSignIn) {
+            console.log('🚫 SIGNED_IN déjà traité, ignoré');
+            return;
+          }
+          
+          setHasProcessedSignIn(true);
+          
+          // Vérifier immédiatement le statut d'authentification et d'onboarding
+          await checkUserStatus(session.user.id);
+          
+        } else if (event === 'SIGNED_OUT') {
+          console.log('❌ Utilisateur déconnecté');
+          setUser(null);
+          setToken(null);
+          setOnboardingStatus('incomplete');
+          setOnboardingStep(0);
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setIsLoading(false);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          console.log('🔄 Token rafraîchi');
+          // Stocker le token SEULEMENT si légitime
+          if (user || onboardingStatus === 'incomplete') {
+            setToken(session.access_token);
+          }
+        }
+      }
+    );
+
+    // Déclencher une vérification initiale de la session
+    supabaseService.getClient().auth.getSession().then(async ({ data: { session } }) => {
+      console.log('🔍 Session initiale:', session?.user?.email || 'AUCUNE');
+      if (session) {
+        // Ne pas appeler checkUserStatus ici, onAuthStateChange s'en chargera
+        console.log('🔍 Session trouvée, onAuthStateChange va se déclencher');
+        setIsLoading(false);
+      } else {
+        console.log('🏁 Pas de session initiale, setIsLoading(false)');
+        setIsLoading(false);
+      }
+    }).catch((error) => {
+      console.error('❌ Erreur session initiale:', error);
+      setIsLoading(false);
+    });
+
+    // Nettoyer l'abonnement au démontage
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Redirection automatique basée sur les changements d'état
+  useEffect(() => {
+    if (!isLoading) {
+      if (onboardingStatus === 'incomplete') {
+        console.log('🚀 Redirection automatique vers /onboarding (useEffect)');
+        window.location.href = '/onboarding';
+      } else if (user) {
+        console.log('🚀 Redirection automatique vers /dashboard (useEffect)');
+        window.location.href = '/dashboard';
+      }
+    }
+  }, [isLoading, onboardingStatus, user]);
+
+  // Fonction pour vérifier le statut complet de l'utilisateur
+  const checkUserStatus = useCallback(async (userId: string) => {
+    // Éviter le double appel
+    if (isCheckingUserStatus) {
+      console.log('🚫 checkUserStatus déjà en cours, ignoré');
+      return;
+    }
+    
+    console.log('🚀 DÉBUT checkUserStatus appelé avec userId:', userId);
+    setIsCheckingUserStatus(true);
+    
+    // TIMEOUT de sécurité : si ça prend plus de 2 secondes, on arrête
+    const timeoutId = setTimeout(() => {
+      console.error('⏰ TIMEOUT checkUserStatus après 2s - arrêt forcé');
+      setUser(null);
+      setOnboardingStatus('incomplete');
+      setOnboardingStep(0);
+      setToken(null);
+      setIsLoading(false);
+      setIsCheckingUserStatus(false);
+    }, 2000);
+    
     try {
-      console.log('🔍 Début vérification onboarding pour:', userId);
+      console.log('🔍 Vérification du statut utilisateur pour:', userId);
       
       // 1. Vérifier si l'utilisateur a un profil complet
-      const { data: userProfile, error: profileError } = await supabaseService.getClient()
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
+      console.log('🔍 Requête user_profiles en cours...');
+      let userProfileResponse;
+      try {
+        console.log('🔍 Appel Supabase user_profiles...');
+        userProfileResponse = await supabaseService.getClient()
+          .from('user_profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        
+        console.log('🔍 Réponse user_profiles reçue:', userProfileResponse);
+        console.log('🔍 userProfileResponse.data:', userProfileResponse.data);
+        console.log('🔍 userProfileResponse.error:', userProfileResponse.error);
+      } catch (error) {
+        console.error('❌ ERREUR requête user_profiles:', error);
+        throw error;
+      }
+      
+      const { data: userProfile, error: profileError } = userProfileResponse;
       console.log('👤 Profil utilisateur:', userProfile);
       console.log('❌ Erreur profil:', profileError);
 
@@ -35,6 +153,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Profil utilisateur non trouvé, vérification onboarding_progress...');
         
         // Si pas de user_profiles, vérifier onboarding_progress
+        console.log('🔍 Requête onboarding_progress en cours...');
         const { data: onboardingProgress, error: onboardingError } = await supabaseService.getClient()
           .from('onboarding_progress')
           .select('*')
@@ -44,122 +163,81 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('📋 Onboarding progress:', onboardingProgress);
         
         if (onboardingProgress) {
-          console.log('Onboarding en cours détecté');
-          return 'incomplete';
+          console.log('Onboarding en cours détecté, étape:', onboardingProgress.current_step);
+          setUser(null); // Pas de user_profile = pas authentifié
+          setOnboardingStatus('incomplete');
+          setOnboardingStep(onboardingProgress.current_step || 0);
+          
+          // Stocker le token SEULEMENT si onboarding_progress existe (lien mail)
+          const { data: { session } } = await supabaseService.getClient().auth.getSession();
+          if (session) {
+            setToken(session.access_token);
+            console.log('🔑 Token stocké car onboarding_progress existe (lien mail)');
+          }
+          
+          console.log('🚀 États mis à jour : user=null, onboardingStatus=incomplete, isLoading va devenir false');
+          console.log('🔍 Vérification des états après setState...');
+          console.log('🔍 user va devenir:', null);
+          console.log('🔍 onboardingStatus va devenir: incomplete');
+          console.log('🔍 onboardingStep va devenir:', onboardingProgress.current_step || 0);
         } else {
           console.log('Aucun profil ni onboarding trouvé');
-          return 'incomplete';
+          setUser(null);
+          setOnboardingStatus('incomplete');
+          setOnboardingStep(0);
+          // NE PAS stocker le token si rien n'existe
+          setToken(null);
+        }
+      } else {
+        // 2. Si user_profiles existe → DASHBOARD (point final)
+        console.log('✅ User profile trouvé, onboarding complet');
+        setUser(userProfile);
+        setOnboardingStatus('complete');
+        setOnboardingStep(0);
+        
+        // Stocker le token car user_profile existe
+        const { data: { session } } = await supabaseService.getClient().auth.getSession();
+        if (session) {
+          setToken(session.access_token);
+          console.log('🔑 Token stocké car user_profile existe');
         }
       }
-
-      // 2. Si user_profiles existe → DASHBOARD (point final)
-      console.log('✅ User profile trouvé, onboarding complet');
-      return 'complete';
+      
+      // ARRÊTER le chargement après vérification
+      console.log('🏁 FIN checkUserStatus - setIsLoading(false)');
+      console.log('🔍 Juste avant setIsLoading(false)');
+      clearTimeout(timeoutId); // Nettoyer le timeout
+      setIsLoading(false);
+      console.log('🔍 Après setIsLoading(false)');
+      setIsCheckingUserStatus(false);
+      console.log('🔍 Après setIsCheckingUserStatus(false)');
+      
+      // Les états sont mis à jour, la redirection se fera via useEffect
     } catch (error) {
-      console.error('Erreur lors de la vérification de l\'onboarding:', error);
-      return 'incomplete';
+      console.error('Erreur lors de la vérification du statut utilisateur:', error);
+      clearTimeout(timeoutId); // Nettoyer le timeout même en cas d'erreur
+      setUser(null);
+      setOnboardingStatus('incomplete');
+      setOnboardingStep(0);
+      setToken(null); // NE PAS stocker le token en cas d'erreur
+      setIsLoading(false); // ARRÊTER le chargement même en cas d'erreur
+      setIsCheckingUserStatus(false);
     }
   }, []);
 
-  // Vérification automatique du token au démarrage
-  useEffect(() => {
-    const checkExistingAuth = async () => {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-      
-      if (storedToken && storedUser) {
-        try {
-          console.log('🔍 Vérification du token stocké...');
-          const user = JSON.parse(storedUser);
-          
-          // Vérifier si le token est toujours valide
-          const { data: { user: currentUser }, error } = await supabaseService.getClient().auth.getUser(storedToken);
-          
-          if (currentUser && !error) {
-            console.log('✅ Token valide, restauration de la session');
-            setToken(storedToken);
-            setUser(user);
-            
-            // Vérifier le statut d'onboarding
-            const { data: userProfile, error: profileError } = await supabaseService.getClient()
-              .from('user_profiles')
-              .select('*')
-              .eq('id', currentUser.id)
-              .single();
 
-            if (userProfile) {
-              setOnboardingStatus('complete');
-            } else {
-              const { data: onboardingProgress } = await supabaseService.getClient()
-                .from('onboarding_progress')
-                .select('*')
-                .eq('id', currentUser.id)
-                .maybeSingle();
-
-              setOnboardingStatus(onboardingProgress ? 'incomplete' : 'complete');
-            }
-          } else {
-            console.log('❌ Token invalide, nettoyage');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-          }
-        } catch (error) {
-          console.error('Erreur lors de la vérification du token:', error);
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-        }
-      }
-      
-      setIsLoading(false);
-    };
-
-    checkExistingAuth();
-  }, []);
 
   const login = async (email: string, password: string) => {
     try {
       const response = await supabaseService.login(email, password);
       
       if (response.success) {
-        setToken(response.token);
-        setUser(response.user);
-        
-        // Vérifier UNIQUEMENT user_profiles
-        if (response.user) {
-          const { data: userProfile, error: profileError } = await supabaseService.getClient()
-            .from('user_profiles')
-            .select('*')
-            .eq('id', response.user.id)
-            .single();
-
-          if (userProfile) {
-            // Si user_profiles existe → DASHBOARD (point final)
-            console.log('✅ User profile trouvé, redirection vers dashboard');
-            setOnboardingStatus('complete');
-          } else {
-            // Si pas de user_profiles, vérifier onboarding_progress
-            console.log('🔍 Vérification onboarding_progress...');
-            const { data: onboardingProgress, error: onboardingError } = await supabaseService.getClient()
-              .from('onboarding_progress')
-              .select('*')
-              .eq('id', response.user.id)
-              .maybeSingle();
-
-            if (onboardingProgress) {
-              console.log('📋 Onboarding en cours détecté');
-              setOnboardingStatus('incomplete');
-            } else {
-              console.log('❌ Aucun profil ni onboarding trouvé');
-              setOnboardingStatus('incomplete');
-            }
-          }
+        // Déclencher onAuthStateChange en récupérant la session
+        const { data: { session } } = await supabaseService.getClient().auth.getSession();
+        if (session) {
+          console.log('🔑 Session récupérée après login, onAuthStateChange va se déclencher');
         }
-        
-        // Stockage en localStorage
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
-        
-        return response; // Retourner les données de connexion
+        return response;
       } else {
         throw new Error('Échec de la connexion');
       }
@@ -171,16 +249,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      if (token) {
+      // UTILISER le token SEULEMENT si user_profile existe
+      if (user && token) {
         await supabaseService.logout();
       }
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
     } finally {
       // Nettoyage local
-      setToken(null);
       setUser(null);
+      setToken(null);
       setOnboardingStatus('incomplete');
+      setOnboardingStep(0);
       localStorage.removeItem('token');
       localStorage.removeItem('user');
     }
@@ -188,23 +268,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Fonction pour rafraîchir le statut d'onboarding
   const refreshOnboardingStatus = async () => {
-    if (user) {
-      const status = await checkOnboardingStatus(user.id);
-      setOnboardingStatus(status);
+    // UTILISER le token SEULEMENT si user_profile existe
+    if (user && token) {
+      const { data: { user: authUser } } = await supabaseService.getClient().auth.getUser();
+      if (authUser) {
+        await checkUserStatus(authUser.id);
+      }
     }
   };
 
   const SUPERADMIN_ID = '39d145c4-20d9-495a-9a57-5c4cd3553089';
-  // Dans le calcul de isAuthenticated, considère le super admin comme authentifié même sans user_profiles
+  
+  // LOGIQUE CLAIRE : isAuthenticated = true seulement si user_profile existe
   const value: AuthContextType = {
     user,
     token,
     login,
     logout,
     isLoading,
-    isAuthenticated: (!!user && !!token) || (user?.id === SUPERADMIN_ID && !!token),
+    isAuthenticated: !!user, // SEULEMENT si user_profile existe
     onboardingStatus,
     isOnboardingComplete: onboardingStatus === 'complete',
+    onboardingStep, // Nouvelle propriété pour l'étape sauvegardée
     refreshOnboardingStatus,
   };
 

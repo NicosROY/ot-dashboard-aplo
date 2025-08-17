@@ -84,10 +84,37 @@ const LegalAcceptanceStep: React.FC<LegalAcceptanceStepProps> = ({
     checkEmailValidation();
   }, []);
 
-  const handleAcceptanceChange = (field: keyof LegalData, value: boolean) => {
+  const handleAcceptanceChange = async (field: keyof LegalData, value: boolean) => {
     const updatedData = { ...legalData, [field]: value };
     setLegalData(updatedData);
     onUpdate(updatedData);
+    
+    // Sauvegarder dans la table legal de Supabase
+    try {
+      const { data: { user } } = await supabaseService.getClient().auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabaseService.getClient()
+        .from('legal')
+        .upsert({
+          user_id: user.id,
+          cgv_accepted: updatedData.cgvAccepted,
+          cgu_accepted: updatedData.cguAccepted,
+          responsibility_accepted: updatedData.responsibilityAccepted,
+          cgv_accepted_at: updatedData.cgvAccepted ? new Date().toISOString() : null,
+          cgu_accepted_at: updatedData.cguAccepted ? new Date().toISOString() : null,
+          responsibility_accepted_at: updatedData.responsibilityAccepted ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('❌ Erreur sauvegarde legal:', error);
+      } else {
+        console.log('✅ Legal sauvegardé:', updatedData);
+      }
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde legal:', error);
+    }
   };
 
   const handleContinue = async () => {
@@ -567,7 +594,11 @@ const LegalAcceptanceStep: React.FC<LegalAcceptanceStepProps> = ({
         <button
           onClick={handleContinue}
           disabled={!allAccepted}
-          className="btn btn-primary"
+          className={`px-6 py-3 rounded-md font-medium transition-all duration-200 ${
+            !allAccepted
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-white text-aplo-purple border border-aplo-purple hover:bg-aplo-purple hover:text-white focus:outline-none focus:ring-2 focus:ring-aplo-purple focus:ring-offset-2'
+          }`}
         >
           Continuer
         </button>

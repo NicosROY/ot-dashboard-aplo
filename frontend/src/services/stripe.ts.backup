@@ -31,20 +31,6 @@ export interface SubscriptionPlan {
 // Plans d'abonnement
 export const subscriptionPlans: SubscriptionPlan[] = [
   {
-    id: "test_commune",
-    name: "Commune de test",
-    price: 0,
-    description: "Plan gratuit pour les communes de test (population négative)",
-    features: [
-      "Publication d'événements illimitée",
-      "Support client",
-      "Jusqu'à 3 utilisateurs",
-      "Sans billetterie",
-      "Plan de test gratuit"
-    ],
-    populationLimit: 0
-  },
-  {
     id: 'small_commune',
     name: 'Petite commune',
     price: 99,

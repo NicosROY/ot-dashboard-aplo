@@ -235,9 +235,9 @@ const CommuneInfoPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Modifier mot de passe */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20">
+          <div className="bg-white/70 backdrop-blur-sm rounded-md shadow-sm border border-white/20">
             <div className="p-8">
-              <div className="bg-gradient-to-r from-red-50 to-pink-50 p-6 rounded-xl border border-red-100">
+              <div className="bg-gradient-to-r from-red-50 to-pink-50 p-6 rounded-md border border-red-100">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -316,9 +316,9 @@ const CommuneInfoPage: React.FC = () => {
           </div>
 
           {/* Informations de base */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20">
+          <div className="bg-white/70 backdrop-blur-sm rounded-md shadow-sm border border-white/20">
             <div className="p-8">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-md border border-blue-100">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

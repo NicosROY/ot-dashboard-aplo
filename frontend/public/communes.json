@@ -1,5 +1,12 @@
 [
   {
+    "nom": "RaccoonCity",
+    "code": "99999",
+    "codeDepartement": "99",
+    "codeRegion": "99",
+    "population": -1234
+  },
+  {
     "nom": "Marseille",
     "code": "13055",
     "codeDepartement": "13",
